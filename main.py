@@ -1,7 +1,7 @@
 
 import streamlit as st
 import pandas as pd
-import plotly.express as px
+import plotly.graph_objects as go
 from io import BytesIO
 
 # --------------------------------------------------
@@ -107,7 +107,6 @@ df["온실가스배출량(tonCO2-eq)"] = pd.to_numeric(
 )
 
 df = df.dropna(subset=필요한열)
-
 df["년도"] = df["년도"].astype(int)
 
 
@@ -241,52 +240,60 @@ else:
 
 
 # --------------------------------------------------
-# 10. 배출량 감소 상위 10개 지역 그래프
+# 10. 온실가스 배출량 감소 히트맵
 # --------------------------------------------------
 
 st.divider()
 
-st.subheader("📊 온실가스 배출량 감소 상위 10개 지역")
+st.subheader("🌡️ 시군별 온실가스 배출량 감소 히트맵")
 
-상위10개 = 비교표.head(10).copy()
+히트맵데이터 = 비교표.sort_values(
+    "배출량 감소량",
+    ascending=True
+).copy()
 
-그래프 = px.bar(
-    상위10개,
-    x="배출량 감소량",
-    y="시군명",
-    orientation="h",
-    text="배출량 감소량",
-    hover_data={
-        "순위": True,
-        "배출량 감소량": ":,.0f",
-        "배출량 감소율(%)": ":.2f"
-    },
-    title=f"{기준연도}년 대비 {비교연도}년 배출량 감소량",
-    labels={
-        "배출량 감소량": "배출량 감소량 (tonCO2-eq)",
-        "시군명": "시군명"
-    }
+히트맵 = go.Figure(
+    data=go.Heatmap(
+        x=["배출량 감소량"],
+        y=히트맵데이터["시군명"],
+        z=히트맵데이터[["배출량 감소량"]].values,
+        text=[
+            [f"{값:,.0f}"]
+            for 값 in 히트맵데이터["배출량 감소량"]
+        ],
+        texttemplate="%{text}",
+        colorscale=[
+            [0, "#d73027"],
+            [0.5, "#ffffbf"],
+            [1, "#1a9850"]
+        ],
+        zmid=0,
+        colorbar=dict(
+            title="배출량 감소량<br>(tonCO2-eq)"
+        ),
+        hovertemplate=(
+            "시군: %{y}<br>"
+            "배출량 감소량: %{z:,.0f} tonCO2-eq"
+            "<extra></extra>"
+        )
+    )
 )
 
-그래프.update_yaxes(
-    categoryorder="total ascending"
-)
-
-그래프.update_traces(
-    texttemplate="%{x:,.0f}",
-    textposition="outside"
-)
-
-그래프.update_layout(
-    height=550,
-    xaxis_title="배출량 감소량 (tonCO2-eq)",
-    yaxis_title="시군명",
-    showlegend=False
+히트맵.update_layout(
+    title=f"{기준연도}년 대비 {비교연도}년 시군별 온실가스 배출량 변화",
+    height=850,
+    xaxis_title="분석 항목",
+    yaxis_title="시군명"
 )
 
 st.plotly_chart(
-    그래프,
+    히트맵,
     use_container_width=True
+)
+
+st.caption(
+    "초록색일수록 배출량이 많이 감소했고, "
+    "빨간색일수록 배출량이 증가했습니다."
 )
 
 
@@ -343,6 +350,5 @@ st.write(
 
 st.caption(
     "※ 감소량이 양수이면 배출량이 감소한 것이고, "
-    "음수이면 배출량이 증가한 것입니다. "
-    "감소량은 두 연도의 실제 배출량 차이로 계산했습니다."
+    "음수이면 배출량이 증가한 것입니다."
 )
